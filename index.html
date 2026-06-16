@@ -3,10 +3,297 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Kosmos Sichqonchasi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100%;
+            height: 100vh;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1a4d 50%, #16213e 100%);
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            cursor: none;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .content {
+            text-align: center;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(100, 200, 255, 0.5);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        h1 {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #00d4ff, #7c3aed, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 3px;
+        }
+
+        p {
+            font-size: 1.3rem;
+            color: #a0d8ff;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 15px 40px;
+            margin: 10px;
+            border: 2px solid #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+            color: #00d4ff;
+            font-size: 1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            font-weight: bold;
+            backdrop-filter: blur(10px);
+        }
+
+        .button:hover {
+            background: rgba(0, 212, 255, 0.3);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.6);
+            transform: scale(1.05);
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        .stars {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .info {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #7c3aed;
+            font-size: 0.9rem;
+            opacity: 0.7;
+            z-index: 2;
+        }
+    </style>
 </head>
 <body>
-    <h3>Githubda o'zgartirildi</h3>
-    <h1>Test uchun yaratilgan</h1>
+    <div class="stars"></div>
+    <canvas id="particleCanvas"></canvas>
+    
+    <div class="container">
+        <div class="content">
+            <h1>KOSMOS</h1>
+            <p>Sichqonchani harakat ettiring va kosmos zarralarini ko'ring</p>
+            <button class="button">Batafsil</button>
+            <button class="button">Bog'lanish</button>
+        </div>
+    </div>
+
+    <div class="info">
+        Kosmos dizayni - Sichqonchani harakat ettiring ✨
+    </div>
+
+    <script>
+        // Canvas va kontekst
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Sichqoncha pozitsiyasi
+        let mouseX = canvas.width / 2;
+        let mouseY = canvas.height / 2;
+
+        // Zarrachalar massivi
+        const particles = [];
+
+        // Zarrachalar klassi
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = Math.random() * 4 + 1;
+                this.speedX = (Math.random() - 0.5) * 8;
+                this.speedY = (Math.random() - 0.5) * 8;
+                this.opacity = 1;
+                this.decay = Math.random() * 0.01 + 0.005;
+                this.hue = Math.random() * 60 + 180; // Sini (ko'k-ijuk)
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.opacity -= this.decay;
+                this.size *= 0.98;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = this.opacity;
+                ctx.fillStyle = `hsl(${this.hue}, 100%, 50%)`;
+                ctx.shadowColor = `hsl(${this.hue}, 100%, 50%)`;
+                ctx.shadowBlur = 10;
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Sichqonchani sekish jadavali
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+
+            // Yangi zarrachalar yaratish
+            for (let i = 0; i < 3; i++) {
+                particles.push(new Particle(mouseX, mouseY));
+            }
+        });
+
+        // Animatsiya funksiyasi
+        function animate() {
+            // Fon tozalash (iz qoldirish effekti)
+            ctx.fillStyle = 'rgba(10, 14, 39, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Zarrachalarni yangilash va chizish
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw(ctx);
+
+                if (particles[i].opacity <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Sichqoncha kursori chizish (yulduz shakl)
+            drawCursor(mouseX, mouseY);
+
+            requestAnimationFrame(animate);
+        }
+
+        // Sichqoncha kursori chizish
+        function drawCursor(x, y) {
+            const size = 10;
+            const glowSize = 20;
+
+            ctx.save();
+            
+            // Nur effekti
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, glowSize);
+            gradient.addColorStop(0, 'rgba(0, 212, 255, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(0, 212, 255, 0.3)');
+            gradient.addColorStop(1, 'rgba(0, 212, 255, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, glowSize, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Markaziy nuqta
+            ctx.fillStyle = '#00d4ff';
+            ctx.shadowColor = '#00d4ff';
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Aylanma halqa
+            ctx.strokeStyle = 'rgba(124, 58, 237, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, size * 1.5, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // Yulduzlari yaratish
+        function createStars() {
+            const starsContainer = document.querySelector('.stars');
+            const starCount = 100;
+
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                const x = Math.random() * 100;
+                const y = Math.random() * 100;
+                const size = Math.random() * 2 + 0.5;
+                const duration = Math.random() * 3 + 2;
+
+                star.style.cssText = `
+                    position: absolute;
+                    left: ${x}%;
+                    top: ${y}%;
+                    width: ${size}px;
+                    height: ${size}px;
+                    background: white;
+                    border-radius: 50%;
+                    box-shadow: 0 0 ${size * 2}px rgba(255, 255, 255, 0.8);
+                    animation: twinkle ${duration}s infinite;
+                `;
+
+                starsContainer.appendChild(star);
+            }
+
+            // Twinkle animatsiyasini CSS-da qo'shish
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes twinkle {
+                    0%, 100% { opacity: 0.3; }
+                    50% { opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Oyna o'lchami o'zgarishi
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Boshlash
+        createStars();
+        animate();
+    </script>
 </body>
 </html>
