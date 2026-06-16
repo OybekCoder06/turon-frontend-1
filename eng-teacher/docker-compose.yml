@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: teacherai_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-teacherai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-development}
+      POSTGRES_DB: ${POSTGRES_DB:-teacherai}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./prisma/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-teacherai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - teacherai_network
+
+  # Next.js Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: teacherai_app
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-teacherai}:${POSTGRES_PASSWORD:-development}@postgres:5432/${POSTGRES_DB:-teacherai}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-your-secret-key}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - teacherai_network
+    command: sh -c "npx prisma db push --skip-generate && npm run dev"
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  teacherai_network:
+    driver: bridge

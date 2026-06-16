@@ -1,0 +1,329 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum EnglishLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  FLUENT
+}
+
+enum LearningGoal {
+  IELTS
+  SPEAKING
+  TRAVEL_ENGLISH
+  BUSINESS_ENGLISH
+  SCHOOL_ENGLISH
+}
+
+enum UserRank {
+  GUEST
+  STUDENT
+  TEACHERS_APPRENTICE
+  LEFT_HAND
+  RIGHT_HAND
+  SENIOR_ASSISTANT
+  VICE_TEACHER
+  LEADER
+}
+
+enum BookCategory {
+  GRAMMAR
+  VOCABULARY
+  IELTS
+  SPEAKING
+  PRONUNCIATION
+}
+
+enum TeacherMode {
+  FRIENDLY
+  STRICT
+}
+
+enum MissionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum BossBattleType {
+  AIRPORT_CONVERSATION
+  JOB_INTERVIEW
+  IELTS_SPEAKING_TEST
+  BUSINESS_MEETING
+}
+
+enum BossBattleStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  PASSED
+  FAILED
+}
+
+// Models
+model User {
+  id                    String     @id @default(cuid())
+  email                 String     @unique
+  name                  String
+  password              String?
+  avatar                String?
+  englishLevel          EnglishLevel @default(BEGINNER)
+  learningGoal          LearningGoal
+  
+  // User Stats
+  xp                    Int        @default(0)
+  level                 Int        @default(1)
+  rank                  UserRank   @default(GUEST)
+  dailyStreak           Int        @default(0)
+  totalSpeakingTime     Int        @default(0) // in seconds
+  completedTasks        Int        @default(0)
+  
+  // Last Activity
+  lastActivityAt        DateTime?
+  lastLoginAt           DateTime?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+  
+  // Relations
+  conversations         Conversation[]
+  messages              Message[]
+  xpLogs                XPLog[]
+  missions              Mission[]
+  achievements          Achievement[]
+  gameScores            GameScore[]
+  bossBattleResults     BossBattleResult[]
+  leaderboardEntries    LeaderboardEntry[]
+  favoriteBooks         FavoriteBook[]
+  
+  @@index([email])
+  @@index([rank])
+  @@index([xp])
+}
+
+model Conversation {
+  id                    String     @id @default(cuid())
+  userId                String
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title                 String     @default("New Conversation")
+  topic                 String?
+  teacherMode           TeacherMode @default(FRIENDLY)
+  
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+  
+  messages              Message[]
+  
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Message {
+  id                    String     @id @default(cuid())
+  conversationId        String
+  conversation          Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId                String
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  role                  String     // "user" or "assistant"
+  content               String     @db.Text
+  audioUrl              String?
+  
+  // Grammar Analysis
+  grammarMistakes       String?    @db.Text // JSON array
+  suggestions           String?    @db.Text // JSON array
+  
+  createdAt             DateTime   @default(now())
+  
+  @@index([conversationId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Book {
+  id                    String     @id @default(cuid())
+  title                 String
+  author                String
+  category              BookCategory
+  description           String?    @db.Text
+  coverImage            String?
+  pdfUrl                String?
+  
+  // Content
+  totalPages            Int        @default(0)
+  chapters              Int        @default(1)
+  
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+  
+  // Relations
+  favoriteBooks         FavoriteBook[]
+  
+  @@index([category])
+  @@fulltext([title, author]) // For search
+}
+
+model FavoriteBook {
+  id                    String     @id @default(cuid())
+  userId                String
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookId                String
+  book                  Book       @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  
+  currentPage           Int        @default(0)
+  progress              Float      @default(0.0) // 0-100
+  
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+  
+  @@unique([userId, bookId])
+  @@index([userId])
+}
+
+model Achievement {
+  id                    String     @id @default(cuid())
+  userId                String
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name                  String
+  description           String?
+  icon                  String?
+  badgeColor            String?    @default("#22C55E")
+  
+  unlockedAt            DateTime   @default(now())
+  
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model XPLog {
+  id                    String     @id @default(cuid())
+  userId                String
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  amount                Int
+  reason                String     // "speaking", "reading", "game_win", "mission_complete"
+  description           String?
+  
+  createdAt             DateTime   @default(now())
+  
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Mission {
+  id                    String     @id @default(cuid())
+  userId                String
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title                 String
+  description           String?    @db.Text
+  type                  String     // "speak", "learn_words", "conversation", "read_chapter"
+  targetValue           Int
+  currentValue          Int        @default(0)
+  status                MissionStatus @default(PENDING)
+  
+  reward                Int        @default(30) // XP reward
+  
+  createdAt             DateTime   @default(now())
+  completedAt           DateTime?
+  updatedAt             DateTime   @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+}
+
+model GameScore {
+  id                    String     @id @default(cuid())
+  userId                String
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  gameType              String     // "last_letter_challenge", etc.
+  score                 Int
+  totalQuestions        Int
+  correctAnswers        Int
+  
+  createdAt             DateTime   @default(now())
+  
+  @@index([userId])
+  @@index([gameType])
+  @@index([createdAt])
+}
+
+model BossBattle {
+  id                    String     @id @default(cuid())
+  
+  name                  String
+  type                  BossBattleType
+  description           String?    @db.Text
+  difficulty            Int        @default(1) // 1-5
+  
+  createdAt             DateTime   @default(now())
+  
+  results               BossBattleResult[]
+}
+
+model BossBattleResult {
+  id                    String     @id @default(cuid())
+  userId                String
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bossBattleId          String
+  bossBattle            BossBattle @relation(fields: [bossBattleId], references: [id], onDelete: Cascade)
+  
+  status                BossBattleStatus @default(NOT_STARTED)
+  
+  // Evaluation
+  grammarScore          Int        @default(0)
+  vocabularyScore       Int        @default(0)
+  fluencyScore          Int        @default(0)
+  pronunciationScore    Int        @default(0)
+  totalScore            Int        @default(0)
+  feedback              String?    @db.Text
+  
+  createdAt             DateTime   @default(now())
+  completedAt           DateTime?
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model LeaderboardEntry {
+  id                    String     @id @default(cuid())
+  userId                String     @unique
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  weeklyXp              Int        @default(0)
+  weeklyStreak          Int        @default(0)
+  weeklySpeakingTime    Int        @default(0)
+  
+  rank                  Int        @default(0)
+  lastUpdated           DateTime   @default(now())
+  
+  @@index([weeklyXp])
+  @@index([weeklyStreak])
+  @@index([weeklySpeakingTime])
+}
+
+// Admin Models
+model AdminLog {
+  id                    String     @id @default(cuid())
+  action                String
+  details               String?    @db.Text
+  
+  createdAt             DateTime   @default(now())
+  
+  @@index([createdAt])
+  @@index([action])
+}
